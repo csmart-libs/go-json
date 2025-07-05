@@ -78,30 +78,39 @@ jobs:
         go list -m -versions ${{ steps.get_version.outputs.MODULE_PATH }}
 
     - name: Create GitHub Release
-      uses: actions/create-release@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        tag_name: ${{ steps.get_version.outputs.TAG_NAME }}
-        release_name: Release ${{ steps.get_version.outputs.TAG_NAME }}
-        body: |
-          # Release ${{ steps.get_version.outputs.TAG_NAME }}
+      run: |
+        # Create release body
+        cat > release_body.md << 'EOF'
+        # Release ${{ steps.get_version.outputs.TAG_NAME }}
 
-          ${{ steps.changelog.outputs.CHANGELOG }}
+        ${{ steps.changelog.outputs.CHANGELOG }}
 
-          ## Installation
+        ## Installation
 
-          ```bash
-          go get ${{ steps.get_version.outputs.MODULE_PATH }}@${{ steps.get_version.outputs.TAG_NAME }}
-          ```
+        ```bash
+        go get ${{ steps.get_version.outputs.MODULE_PATH }}@${{ steps.get_version.outputs.TAG_NAME }}
+        ```
 
-          ## Go Module
+        ## Go Module
 
-          This release is available on the Go module proxy at:
-          - https://proxy.golang.org/${{ steps.get_version.outputs.MODULE_PATH }}/@v/${{ steps.get_version.outputs.TAG_NAME }}.info
+        This release is available on the Go module proxy at:
+        - https://proxy.golang.org/${{ steps.get_version.outputs.MODULE_PATH }}/@v/${{ steps.get_version.outputs.TAG_NAME }}.info
 
-          ## Verification
+        ## Verification
 
-          Module has been successfully pushed to Go proxy and is available for use.
-        draft: false
-        prerelease: ${{ contains(steps.get_version.outputs.TAG_NAME, '-') }}
+        Module has been successfully pushed to Go proxy and is available for use.
+        EOF
+
+        # Create release using GitHub CLI
+        if [[ "${{ steps.get_version.outputs.TAG_NAME }}" == *"-"* ]]; then
+          gh release create "${{ steps.get_version.outputs.TAG_NAME }}" \
+            --title "Release ${{ steps.get_version.outputs.TAG_NAME }}" \
+            --notes-file release_body.md \
+            --prerelease
+        else
+          gh release create "${{ steps.get_version.outputs.TAG_NAME }}" \
+            --title "Release ${{ steps.get_version.outputs.TAG_NAME }}" \
+            --notes-file release_body.md
+        fi
